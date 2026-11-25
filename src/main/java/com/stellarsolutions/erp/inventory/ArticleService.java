@@ -6,6 +6,7 @@
  */
 package com.stellarsolutions.erp.inventory;
 
+import java.util.List;
 import java.util.Objects;
 
 import org.springframework.http.HttpStatus;
@@ -46,10 +47,7 @@ public class ArticleService {
 			throw new ConstraintViolationException(violations);
 		}
 
-		Company company = companyRepository.findById(companyId)
-				.filter(Company::isActive)
-				.orElseThrow(() -> new ResponseStatusException(
-						HttpStatus.NOT_FOUND, "Aktivna firma nije pronađena."));
+		Company company = requireActiveCompany(companyId);
 
 		String code = request.code().strip();
 
@@ -66,5 +64,22 @@ public class ArticleService {
 
 		Article savedArticle = articleRepository.save(article);
 		return ArticleResponse.from(savedArticle);
+	}
+
+	@Transactional(readOnly = true)
+	public List<ArticleResponse> listByCompany(long companyId) {
+		requireActiveCompany(companyId);
+
+		return articleRepository.findAllByCompany_IdOrderByCodeAsc(companyId)
+				.stream()
+				.map(ArticleResponse::from)
+				.toList();
+	}
+
+	private Company requireActiveCompany(long companyId) {
+		return companyRepository.findById(companyId)
+				.filter(Company::isActive)
+				.orElseThrow(() -> new ResponseStatusException(
+						HttpStatus.NOT_FOUND, "Aktivna firma nije pronađena."));
 	}
 }
